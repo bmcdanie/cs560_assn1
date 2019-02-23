@@ -93,25 +93,14 @@ class HttpServer:
 
 
   def _upload_file(self, fields, data, conn):
-    #TODO: size isn't working (size of headers and other info is included. 
-    # Splitting on '\r\n\r\n' should work, but also isn't...
     parts = data.split('\r\n\r\n'.encode())
-    while len(parts) < 3:
-      new_d = conn.recv(1024)
-      if not new_d: break
-      data += new_d
-      parts = data.split('\r\n\r\n'.encode())
-
-    if len(parts) < 3:
-      # malformed request. Raise error
-      pass
-#    print(bytes.decode(parts[1]))
     fields = bytes.decode(parts[0]).split('\n')
-    fields = [field.split(' ') for field in fields] 
-    sz = int(fields[3][1])
-    #TODO: grab actual file name and sanitize it. Add random string if name collision
+    fields = [field.split(' ') for field in fields]
+
+    sz = int(fields[4][1])
+
     filename = uuid.uuid4().hex
-    content = parts[2]
+    content = parts[1]
     print(sz)
     print('uploading file!')
     with open(self.upload_dir + '/' + filename, 'wb') as fp:
@@ -175,8 +164,6 @@ class HttpServer:
     else:
       print('Unknown HTTP request method: ', request_method)
       status = const.HTTP_STATUS_BAD_REQ
-    
-#    self._serve_content(req_file, request_method, conn, status)
 
 
   def _wait_for_connections(self):
@@ -190,12 +177,9 @@ class HttpServer:
       print('New connection from ', addr)
 
       data = conn.recv(1024)
-#      data_str = bytes.decode(data)
 
-      #TODO: try-catch here w/ 500 internal error if exception
-      #self._handle_request(data_str, conn)
+      #we could try-catch here w/ 500 internal error if exception
       self._handle_request(data, conn)
-
 
 
   def shutdown(self):
