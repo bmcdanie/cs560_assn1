@@ -93,44 +93,38 @@ class HttpServer:
 
 
   def _upload_file(self, fields, data, conn):
-    parts = data.split('\r\n\r\n'.encode())
-    fields = bytes.decode(parts[0]).split('\n')
-    fields = [field.split(' ') for field in fields]
 
-    sz = int(fields[4][1])
+    content = data
 
-    filename = uuid.uuid4().hex
-    content = parts[1]
-    print(sz)
+    chunk = conn.recv(512)
+    content += chunk
+    conn.settimeout(2.0)
+    while chunk:
+
+      try:
+          chunk = conn.recv(512) 
+      except socket.timeout as e:
+          break
+      print(chunk)
+      content += chunk
+      print(len(chunk))
+      if len(chunk) < 1:
+          break
+    
+    conn.settimeout(None)
+    form = content.decode()
+
+    stuff = form.split('------')[1]
+    parsed = stuff.split('\n')
+    info = parsed[1]
+    file_data = '\n'.join(parsed[3:])
+    file_name = info.split('filename=\"')[1][:-2]
+    print(file_name)
+    print(file_data)
+
     print('uploading file!')
-    with open(self.upload_dir + '/' + filename, 'wb') as fp:
-      if len(content) < sz:
-        fp.write(content)
-        sz -= len(content)
-      else:
-        fp.write(content[0:sz])
-        return
-      print(content)
-      while content:
-        print('SIZE: ', sz)
-        content = conn.recv(1024)
-        check = content.split('\r\n\r\n'.encode()) 
-        if len(check) > 1:
-          print('FOUND IT!')
-          fp.write(check[0])
-          print(check[0])
-          break
-        if len(content) < sz:
-          print(content)
-          fp.write(content)
-          sz -= len(content)
-        else:
-          print(content[0:sz])
-          fp.write(content[0:sz])
-          break
-    sys.exit(0)
-
-
+    with open(self.upload_dir + '/' + file_name, 'wb') as fp:
+        fp.write(file_data.encode())
 
   def __is_safe_path(self, path):
     """ Check for attempt at path traversal! """
